@@ -1,0 +1,86 @@
+# Секреты репозитория:
+#   SSH_HOST         — адрес сервера
+#   SSH_USER         — пользователь SSH
+#   SSH_PRIVATE_KEY  — приватный ключ (содержимое файла, не путь)
+#   SSH_PORT         — порт SSH, необязательно (по умолчанию 22)
+#
+# Пуш и pull в GHCR идут через GITHUB_TOKEN этой джобы.
+# На сервере должен быть установлен Docker, а SSH-пользователь — иметь право его запускать.
+
+name: Build and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.ref }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Image name
+        id: image
+        run: |
+          name="ghcr.io/$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "ref=$name:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.image.outputs.name }}:latest
+            ${{ steps.image.outputs.name }}:${{ github.sha }}
+
+  deploy:
+    name: Deploy over SSH
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull and run on server
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ${{ needs.build.outputs.image }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          envs: GHCR_TOKEN,IMAGE
+          script_stop: true
+          script: |
+            set -eu
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            docker pull "$IMAGE"
+            docker logout ghcr.io
+            docker stop server-time || true
+            docker rm server-time || true
+            docker run -d \
+              --name server-time \
+              --restart unless-stopped \
+              -p 8000:8000 \
+              "$IMAGE"
