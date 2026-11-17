@@ -1,0 +1,63 @@
+# Server Time API
+
+Простой тестовый бэкенд на FastAPI. Возвращает текущие время и дату сервера.
+
+## Запуск локально
+
+```powershell
+python -m pip install -r requirements.txt
+python -m uvicorn main:app --reload
+```
+
+Сервер слушает `http://127.0.0.1:8000`. Интерактивная документация: `http://127.0.0.1:8000/docs`.
+
+## Запуск в Docker
+
+```powershell
+docker build -t server-time .
+docker run --rm -p 8000:8000 server-time
+```
+
+## Эндпоинты
+
+### `GET /time`
+
+Текущее время сервера.
+
+```json
+{
+  "server_time": "2026-11-17T23:08:50+07:00",
+  "timezone": "Новосибирское стандартное время",
+  "unix": 1794931730
+}
+```
+
+### `GET /date`
+
+Текущая дата сервера.
+
+```json
+{
+  "date": "2026-11-17",
+  "year": 2026,
+  "month": 11,
+  "day": 17,
+  "weekday": "вторник",
+  "timezone": "Новосибирское стандартное время"
+}
+```
+
+### `GET /datetime`
+
+Дата и время вместе.
+
+```json
+{
+  "datetime": "2026-11-17T23:08:50+07:00",
+  "date": "2026-11-17",
+  "time": "23:08:50",
+  "weekday": "вторник",
+  "timezone": "Новосибирское стандартное время",
+  "unix": 1794931730
+}
+```
