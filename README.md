@@ -6,10 +6,14 @@
 
 ```powershell
 python -m pip install -r requirements.txt
-python -m uvicorn main:app --reload
+python main.py
 ```
 
 Сервер слушает `http://127.0.0.1:8000`. Интерактивная документация: `http://127.0.0.1:8000/docs`.
+
+## Логи
+
+Логи приложения, включая журналы доступа и ошибки Uvicorn, пишутся в stdout и отправляются в Loki: `http://2.27.44.99:3100`. Другой адрес можно задать переменной `LOKI_URL`.
 
 ## Запуск в Docker
 

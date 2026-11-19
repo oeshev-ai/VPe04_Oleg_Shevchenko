@@ -1,8 +1,20 @@
+import logging
+from contextlib import asynccontextmanager
 from datetime import datetime
 
 from fastapi import FastAPI
 
-app = FastAPI(title="Server Time API", version="1.0.0")
+logger = logging.getLogger("server_time")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    logger.info("Приложение запущено")
+    yield
+    logger.info("Приложение остановлено")
+
+
+app = FastAPI(title="Server Time API", version="1.0.0", lifespan=lifespan)
 
 WEEKDAYS = (
     "понедельник",
@@ -53,3 +65,11 @@ def server_datetime() -> dict:
         "timezone": now.tzname(),
         "unix": int(now.timestamp()),
     }
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    from app_logging import LOG_CONFIG
+
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_config=LOG_CONFIG)
